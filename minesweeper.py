@@ -105,27 +105,40 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        raise NotImplementedError
+        # If the number of cells = the count, all cells are mines
+        all_cells_are_mines = len(self.cells) == self.count
+
+        if all_cells_are_mines:
+            return self.cells
+        
+        # else we cannot know what cells are mines
+        return 0
 
     def known_safes(self):
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        raise NotImplementedError
+        # If the count of mines are 0, all cells are safe
+        if self.count == 0:
+            return self.cells
+        return 0
 
     def mark_mine(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        raise NotImplementedError
+        if cell in self.cells:
+            self.cells.remove(cell)
+            self.count -= 1
 
     def mark_safe(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        raise NotImplementedError
+        if cell in self.cells:
+            self.cells.remove(cell)
 
 
 class MinesweeperAI():
@@ -182,7 +195,48 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        raise NotImplementedError
+        # 1) mark the cell as a move that has been made
+        self.moves_made.add(cell)
+
+        # 2) mark the cell as safe
+        self.mark_safe(cell)
+
+        # 3) add a new sentence to the AI's knowledge base
+        # based on the value of `cell` and `count`
+
+        # First find the neighbours
+        neighbours = []
+        for i in range(cell[0] - 1, cell[0] + 2):
+            for j in range(cell[1] - 1, cell[1] + 2):
+                # check if i, j is same as cell
+                if (i, j) == cell:
+                    pass
+                elif 0 <= i < self.height and 0 <= j < self.width:
+                    if (i, j) in self.safes or (i, j) in self.mines or (i,j) in neighbours:
+                        pass
+                    else:
+                        neighbours.append((i, j))
+
+        # Add sentence to the knowledge base
+        if len(neighbours) > 0:
+            add_sentence = Sentence(neighbours, count)
+            self.knowledge.append(add_sentence)
+
+        # 4) mark any additional cells as safe or as mines
+        # if it can be concluded based on the AI's knowledge base
+        for s in self.knowledge:
+            mines = s.known_mines()
+            safe = s.known_safes()
+
+            if mines:
+                self.mines.update(mines)
+            elif safe:
+                self.safes.update(safe)
+
+        # 5) add any new sentences to the AI's knowledge base
+        # if they can be inferred from existing knowledge
+        self.update_knowledge_base()
+
 
     def make_safe_move(self):
         """
@@ -193,7 +247,10 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        raise NotImplementedError
+        for safe in self.safes:
+            if safe not in self.moves_made:
+                return safe
+        return 0
 
     def make_random_move(self):
         """
@@ -202,4 +259,14 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        raise NotImplementedError
+        moves = [(i, j) for i in range(self.height) for j in range(self.width)]
+        
+        while len(moves) != 0: # only loop if moves not empty
+            move = random.choice(moves)
+            if move in self.moves_made or move in self.mines:
+                moves.remove(move)
+            else:
+                return move
+
+        # if all moves are made or are mines, return None
+        return None       
