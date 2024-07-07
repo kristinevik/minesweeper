@@ -1,3 +1,4 @@
+import copy
 import itertools
 import random
 
@@ -112,7 +113,7 @@ class Sentence():
             return self.cells
         
         # else we cannot know what cells are mines
-        return 0
+        return None
 
     def known_safes(self):
         """
@@ -121,7 +122,7 @@ class Sentence():
         # If the count of mines are 0, all cells are safe
         if self.count == 0:
             return self.cells
-        return 0
+        return None
 
     def mark_mine(self, cell):
         """
@@ -225,17 +226,39 @@ class MinesweeperAI():
         # 4) mark any additional cells as safe or as mines
         # if it can be concluded based on the AI's knowledge base
         for s in self.knowledge:
-            mines = s.known_mines()
-            safe = s.known_safes()
+            current_mines = s.known_mines()
+            current_safe = s.known_safes()
+            if current_mines == None: current_mines = set() # if no mines, create empty set
+            if current_safe == None: current_safe = set() # if no safe, create empty set
 
-            if mines:
-                self.mines.update(mines)
-            elif safe:
-                self.safes.update(safe)
+            for m in current_mines:
+                self.mark_mine(m)
+            for s in current_safe:
+                self.mark_safe(s)
 
         # 5) add any new sentences to the AI's knowledge base
         # if they can be inferred from existing knowledge
-        self.update_knowledge_base()
+
+        # make deep copy
+        current_knowledge = copy.deepcopy(self.knowledge)
+
+        # Iterate over all sentences in knowledge
+        for s in current_knowledge:
+            current_knowledge.remove(s) # Not compare sentence with itself
+
+            # Only look at sentences that have a count. if not, there are no mines around
+            if s.count != 0:
+                # Compare sentence with all other sentences
+                for s2 in self.knowledge:
+                    # If sentence2 is a subset of sentence1, add new knowledge
+                    if s2.cells.issubset(s.cells):
+                        # The relevant cells is the difference between sentence and sentence2 cells
+                        new_cells = s.cells - s2.cells
+                        # The relevant count is the difference between sentence and sentence2 counts
+                        new_count = s.count - s2.count
+                        # Add the new inferred sentence to the knowledge base
+                        self.knowledge.append(Sentence(new_cells, new_count))
+
 
 
     def make_safe_move(self):
